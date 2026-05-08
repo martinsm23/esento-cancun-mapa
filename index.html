@@ -70,11 +70,16 @@ header{background:var(--navy);color:#fff;padding:6px 10px env(safe-area-inset-to
 .tag.edited{background:var(--edited);color:#000;font-weight:700}
 
 /* SHEET */
+.sheet-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:2900;opacity:0;pointer-events:none;transition:opacity .25s}
+.sheet-backdrop.show{opacity:1;pointer-events:auto}
 .sheet{position:fixed;left:0;right:0;bottom:0;background:var(--bg);border-top-left-radius:18px;border-top-right-radius:18px;box-shadow:0 -8px 32px rgba(0,0,0,.6);z-index:3000;transform:translateY(100%);transition:transform .25s;max-height:92vh;display:flex;flex-direction:column;overflow:hidden}
 .sheet.show{transform:translateY(0)}
-.sheet-bar{background:var(--navy);color:#fff;padding:11px 14px env(safe-area-inset-top) 14px;display:flex;align-items:center;gap:10px;flex-shrink:0;box-shadow:0 2px 8px rgba(0,0,0,.4);position:relative;z-index:5}
-.sheet-back{background:rgba(255,255,255,.1);color:#fff;border:none;padding:8px 12px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;flex-shrink:0}
-.sheet-back:active{background:rgba(255,255,255,.2)}
+.sheet-bar{background:var(--navy);color:#fff;padding:14px 14px 14px 14px;padding-top:max(14px,env(safe-area-inset-top));display:flex;align-items:center;gap:10px;flex-shrink:0;box-shadow:0 2px 8px rgba(0,0,0,.5);position:relative;z-index:5;min-height:54px;cursor:grab;touch-action:pan-y}
+.sheet-back{background:var(--gold);color:#000;border:none;padding:10px 14px;border-radius:9px;font-size:14px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;flex-shrink:0;min-height:40px}
+.sheet-back:active{background:#b89762;transform:scale(.96)}
+.sheet-x{position:absolute;top:9px;right:10px;background:rgba(255,255,255,.15);color:#fff;border:none;width:38px;height:38px;border-radius:50%;font-size:18px;font-weight:700;cursor:pointer;z-index:10;display:flex;align-items:center;justify-content:center}
+.sheet-x:active{background:rgba(255,255,255,.3);transform:scale(.92)}
+.sheet-handle{position:absolute;top:5px;left:50%;transform:translateX(-50%);width:48px;height:5px;background:rgba(255,255,255,.4);border-radius:3px;pointer-events:none}
 .sheet-bar .name{flex:1;font-size:14px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--gold)}
 .sheet-body{overflow-y:auto;-webkit-overflow-scrolling:touch;flex:1;padding-bottom:env(safe-area-inset-bottom)}
 .sheet-img{width:100%;height:160px;object-fit:cover;background:var(--card-2);flex-shrink:0;display:block}
@@ -217,10 +222,13 @@ h4.section{font-size:11px;color:var(--gold);text-transform:uppercase;letter-spac
 </div>
 
 <!-- SHEET PROJECT -->
+<div class="sheet-backdrop" id="sheet-backdrop"></div>
 <div class="sheet" id="sheet">
-  <div class="sheet-bar">
-    <button class="sheet-back" id="sheet-back">← Volver al mapa</button>
+  <div class="sheet-bar" id="sheet-bar">
+    <div class="sheet-handle"></div>
+    <button class="sheet-back" id="sheet-back">← Mapa</button>
     <div class="name" id="sheet-name"></div>
+    <button class="sheet-x" id="sheet-x" aria-label="Cerrar">✕</button>
   </div>
   <div class="sheet-body" id="sheet-body"></div>
 </div>
@@ -500,13 +508,43 @@ function openSheet(rawP) {
   sheetName.textContent = p.project;
   renderSheet(rawP);
   sheet.classList.add('show');
+  if (typeof sheetBackdrop !== 'undefined' && sheetBackdrop) sheetBackdrop.classList.add('show');
   try { map.flyTo([p.lat, p.lng], 16, { duration: .5 }); } catch(e){}
 }
 function closeSheet() {
   sheet.classList.remove('show');
+  if (typeof sheetBackdrop !== 'undefined' && sheetBackdrop) sheetBackdrop.classList.remove('show');
+  sheet.style.transform='';
   state.selectedProjectId = null;
 }
 document.getElementById('sheet-back').addEventListener('click', closeSheet);
+
+const sheetBackdrop = document.getElementById('sheet-backdrop');
+const sheetXBtn = document.getElementById('sheet-x');
+function showSheetUI() { sheetBackdrop.classList.add('show'); }
+function hideSheetUI() { sheetBackdrop.classList.remove('show'); }
+if (sheetXBtn) sheetXBtn.addEventListener('click', () => closeSheet());
+if (sheetBackdrop) sheetBackdrop.addEventListener('click', () => closeSheet());
+let _swipeStartY = 0, _swipeDragging = false;
+const _sheetBarEl = document.getElementById('sheet-bar');
+if (_sheetBarEl) {
+  _sheetBarEl.addEventListener('touchstart', (e) => { _swipeStartY = e.touches[0].clientY; _swipeDragging = true; }, {passive: true});
+  _sheetBarEl.addEventListener('touchmove', (e) => {
+    if (!_swipeDragging) return;
+    const dy = e.touches[0].clientY - _swipeStartY;
+    if (dy > 0) {
+      sheet.style.transform = 'translateY(' + dy + 'px)';
+    }
+  }, {passive: true});
+  _sheetBarEl.addEventListener('touchend', (e) => {
+    if (!_swipeDragging) return;
+    _swipeDragging = false;
+    const finalY = (e.changedTouches[0].clientY - _swipeStartY);
+    sheet.style.transform = '';
+    if (finalY > 60) closeSheet();
+  });
+}
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && sheet.classList.contains('show')) closeSheet(); });
 
 // Raw JS — placeholder innerHTML gets replaced with the property name 'inner' + 'HTML' at build time
 // NOTE: sheet/sheetBody/sheetName + openSheet/closeSheet ya declarados en chunk anterior — no redeclarar
