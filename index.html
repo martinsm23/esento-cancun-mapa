@@ -509,24 +509,7 @@ function closeSheet() {
 document.getElementById('sheet-back').addEventListener('click', closeSheet);
 
 // Raw JS — placeholder innerHTML gets replaced with the property name 'inner' + 'HTML' at build time
-
-const sheet = document.getElementById('sheet');
-const sheetBody = document.getElementById('sheet-body');
-const sheetName = document.getElementById('sheet-name');
-
-function openSheet(rawP) {
-  const p = effectiveProject(rawP);
-  state.selectedProjectId = rawP.id;
-  sheetName.textContent = p.project;
-  renderSheet(rawP);
-  sheet.classList.add('show');
-  try { map.flyTo([p.lat, p.lng], 16, { duration: .5 }); } catch(e){}
-}
-function closeSheet() {
-  sheet.classList.remove('show');
-  state.selectedProjectId = null;
-}
-document.getElementById('sheet-back').addEventListener('click', closeSheet);
+// NOTE: sheet/sheetBody/sheetName + openSheet/closeSheet ya declarados en chunk anterior — no redeclarar
 
 function renderSheet(rawP) {
   const p = effectiveProject(rawP);
